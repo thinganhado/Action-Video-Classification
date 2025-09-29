@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action Recognition Pipeline Comparison</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; background-color: #f8f9fa; }
+        .container { max-width: 1100px; /* Adjusted for 3 content columns */ margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; vertical-align: top; word-wrap: break-word; }
+        
+        /* Main Headers for Categories */
+        .category-header th {
+            text-align: center;
+            font-size: 1.3em;
+            padding: 12px;
+        }
+        .ml-category-header { background-color: #007bff; color: white; }
+        .dl-category-header { background-color: #28a745; color: white; }
+
+        /* Sub Headers for specific pipelines */
+        .pipeline-subheader th {
+            background-color: #6c757d; /* Grey for sub-header */
+            color: white;
+            text-align: center;
+            font-size: 1.1em;
+        }
+        
+        /* Aspect column header */
+        .aspect-col {
+            background-color: #e9ecef;
+            color: #495057;
+            font-weight: bold;
+            width: 20%; /* Width for the first column */
+        }
+
+        td ul { padding-left: 18px; margin-top: 0; margin-bottom: 5px;}
+        td ul li { margin-bottom: 3px; }
+        .placeholder { color: #dc3545; font-style: italic; font-weight: bold; }
+        .metrics { font-weight: bold; color: #17a2b8; }
+        .time-metric { color: #fd7e14; }
+        .ram-metric { color: #6f42c1; }
+        .pros-cons strong { display: block; margin-bottom: 3px; color: #333; }
+        .pros-cons ul { list-style-type: none; padding-left: 0; }
+        .pros-cons li { padding-left: 1.3em; text-indent: -1.3em; margin-bottom: 4px;}
+        .pros-cons li.pro::before { content: "✅ "; color: green; font-weight: bold;}
+        .pros-cons li.con::before { content: "❌ "; color: red; font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Action Recognition Pipeline Comparison: UCF101 (15 Classes)</h1>
+        <p style="text-align:center;">A comparative analysis of different feature engineering and classification approaches.</p>
+
+        <table>
+            <thead>
+                <tr class="category-header">
+                    <th rowspan="2" class="aspect-col">Aspect / Model</th>
+                    <th colspan="2" class="ml-category-header">Machine Learning Approaches</th>
+                    <th class="dl-category-header">Deep Learning Approach</th>
+                </tr>
+                <tr class="pipeline-subheader">
+                    <th>Pipeline 1: STIP + BoVW + SVM</th>
+                    <th>Pipeline 2: Global HOG+HOF+PCA+SVM</th>
+                    <th>Pipeline 3: CNN (ResNet18) + LSTM</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Feature Engineering Section -->
+                <tr>
+                    <td class="aspect-col"><strong>Feature Type</strong></td>
+                    <td>Local STIPs (HOG+HOF, 162D)</td>
+                    <td>Global HOG (avg over frames, 3780D) + Global HOF (aggregated, 9D) = 3789D</td>
+                    <td>Spatial features from pre-trained ResNet18 per frame (512D). LSTM learns temporal features from sequence of 16 sampled frame features.</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Intermediate Representation</strong></td>
+                    <td>BoVW Histograms (500D) via K-Means (K=500).</td>
+                    <td>Concatenated HOG+HOF (3789D).</td>
+                    <td>Sequence of 512D frame features to LSTM; LSTM hidden states (256D).</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Dimensionality Reduction</strong></td>
+                    <td>Implicit via BoVW quantization.</td>
+                    <td>PCA to 256 dimensions.</td>
+                    <td>CNN reduces frame to 512D; LSTM output (last hidden state) is 256D.</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Final Video Representation Dim. (Pre-Classifier)</strong></td>
+                    <td>500</td>
+                    <td>256</td>
+                    <td>256 (from LSTM's last hidden state).</td>
+                </tr>
+
+                <!-- Classifier Section -->
+                <tr>
+                    <td class="aspect-col"><strong>Classifier</strong></td>
+                    <td>SVM (RBF Kernel)</td>
+                    <td>SVM (RBF or Poly Kernel, via GridSearch)</td>
+                    <td>Fully Connected (Linear) layer + Softmax (integrated into CNN-LSTM model).</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Hyperparameter Tuning</strong></td>
+                    <td>GridSearchCV (C: [0.1, 1, 10], gamma: ['scale', 'auto', 0.01, 0.1])</td>
+                    <td>GridSearchCV (C: [0.1,1,10,100], gamma: ['scale',0.001,0.01,0.1,1,10], kernel: ['rbf','poly'])</td>
+                    <td>Learning rate (1e-4), LSTM hidden dim (256), LSTM layers (1), CNN choice (ResNet18), optimizer (Adam), epochs (10), batch size (4).</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Best Model Params / Setup</strong></td>
+                    <td><span class="placeholder">[FROM STIP GridSearchCV: e.g., C=10, gamma='auto']</span></td>
+                    <td><span class="placeholder">[FILL_IN_BEST_HOGHOF_PARAMS]</span></td>
+                    <td>ResNet18 backbone (pretrained), LSTM (256 hidden, 1 layer), Adam (LR 1e-4), 10 Epochs, Batch Size 4, 16 frames/video.</td>
+                </tr>
+
+                <!-- Performance Section -->
+                <tr>
+                    <td class="aspect-col"><strong><span class="metrics">Test Accuracy (Official Split)</span></strong></td>
+                    <td>
+                        Basic SVM: <span class="metrics">52.20%</span><br>
+                        Best SVM (GridSearch): <strong class="metrics placeholder">[FILL_IN_STIP_GRIDSEARCH_ACC]%</strong>
+                    </td>
+                    <td><strong class="metrics">37.84%</strong> (from HOG+HOF "Improved" run)</td>
+                    <td><strong class="metrics">80.15%</strong> (Max validation accuracy at Epoch 2)</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Data Prep/Feature Ext. Time</strong></td>
+                    <td>
+                        STIP Parse: ~7 min<br>
+                        K-Means: ~1 min<br>
+                        BoVW Gen: <span class="time-metric">~27 min</span>
+                    </td>
+                    <td>
+                        HOG+HOF Ext.: <span class="time-metric">~17 min</span><br>
+                        PCA: Fast
+                    </td>
+                    <td>Data download/unzip (one-time on Drive): <span class="time-metric">~2 min (wget) + ~20-40 min (unrar/unzip)</span>.<br> Frame extraction by DataLoader during training (part of epoch time).</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Classifier Training Time</strong></td>
+                    <td>
+                        Basic SVM: <span class="time-metric">~6.3s</span><br>
+                        GridSearchCV: <span class="time-metric placeholder">[FILL_IN_STIP_GRIDSEARCH_TIME]</span>
+                    </td>
+                    <td>
+                        GridSearchCV (HOG+HOF): <span class="time-metric placeholder">[FILL_IN_HOGHOF_IMPROVED_GS_TIME]</span>
+                    </td>
+                    <td>Per epoch: <span class="time-metric placeholder">[MEASURE_AND_FILL_CNNLSTM_EPOCH_TIME]</span>.<br>Total (10 epochs): <span class="time-metric placeholder">[~10x Epoch Time]</span>. (GPU required)</td>
+                </tr>
+                <tr>
+                    <td class="aspect-col"><strong>Peak RAM Usage (Colab Free Tier)</strong></td>
+                    <td>
+                        STIP/KMeans: High before cleanup.<br>
+                        BoVW/SVM stages: <span class="ram-metric">~6.3 GB</span>
+                    </td>
+                    <td>
+                        Feat. Ext.: <span class="ram-metric placeholder">[OBSERVE_AND_FILL_HOGHOF_RAM]</span><br>
+                        PCA/SVM: Manageable
+                    </td>
+                    <td>System RAM for DataLoader, Model on GPU. <span class="ram-metric placeholder">[OBSERVE_CNNLSTM_SYS_RAM]</span>. GPU VRAM: <span class="ram-metric placeholder">[OBSERVE_CNNLSTM_GPU_VRAM]</span>. Batch size critical.</td>
+                </tr>
+
+                <!-- Pros & Cons Section -->
+                <tr>
+                    <td class="aspect-col" style="vertical-align: middle;"><strong>Pros & Cons</strong></td>
+                    <td class="pros-cons">
+                        <strong>STIP+BoVW+SVM</strong>
+                        <ul>
+                            <li class="pro">Captures local spatio-temporal details.</li>
+                            <li class="pro">Established traditional method.</li>
+                            <li class="con">Vocabulary creation can be bottleneck.</li>
+                            <li class="con">BoVW quantization causes info loss.</li>
+                            <li class="con">STIPs can be expensive to extract/parse.</li>
+                        </ul>
+                    </td>
+                    <td class="pros-cons">
+                        <strong>HOG+HOF+PCA+SVM</strong>
+                        <ul>
+                            <li class="pro">Simpler pipeline than BoVW.</li>
+                            <li class="pro">Direct fixed-length vector.</li>
+                            <li class="pro">PCA offers good dim. reduction.</li>
+                            <li class="con">Global averaging (HOG) may lose temporal dynamics.</li>
+                            <li class="con">HOF is a basic motion summary.</li>
+                            <li class="con">Observed lower performance in this setup.</li>
+                        </ul>
+                    </td>
+                    <td class="pros-cons">
+                        <strong>CNN (ResNet18) + LSTM</strong>
+                        <ul>
+                            <li class="pro">Leverages pre-trained image features.</li>
+                            <li class="pro">LSTM explicitly models temporal sequences.</li>
+                            <li class="pro">Significantly higher accuracy (80.15% in this run).</li>
+                            <li class="con">Training is time-consuming & requires GPU.</li>
+                            <li class="con">More hyperparameters to tune.</li>
+                            <li class="con">Sensitive to frame sampling & sequence length.</li>
+                        </ul>
+                    </td>
+                </tr>
+                 <tr>
+                    <td class="aspect-col"><strong>Ideal Use Cases / Notes</strong></td>
+                    <td>Good for understanding classic BoVW pipelines. Can work okay if STIPs are very discriminative.</td>
+                    <td>Simpler alternative to BoVW. Performance highly dependent on specific HOG/HOF implementation and data.</td>
+                    <td>A strong baseline deep learning approach. Good for leveraging ImageNet knowledge. Achieved best performance among the three.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="text-align:center; font-style:italic;">Fill in remaining placeholders with your actual results from all pipelines.</p>
+    </div>
+</body>
+</html>
